@@ -1,0 +1,1149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2D Game Editor - Studio</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #393b3d;
+            color: white;
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        .studio-container {
+            display: grid;
+            grid-template-areas: 
+                "toolbar toolbar toolbar"
+                "canvas right right"
+                "output output output";
+            grid-template-rows: 50px 1fr 150px;
+            grid-template-columns: 1fr 300px 300px;
+            height: 100vh;
+            gap: 2px;
+            background: #2d2d30;
+        }
+
+        /* Toolbar */
+        .toolbar {
+            grid-area: toolbar;
+            background: #2d2d30;
+            border-bottom: 1px solid #464647;
+            display: flex;
+            align-items: center;
+            padding: 0 10px;
+            gap: 5px;
+        }
+
+        .tool-button {
+            background: #3f4042;
+            border: none;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            transition: background 0.2s;
+        }
+
+        .tool-button:hover {
+            background: #464647;
+        }
+
+        .tool-button.active {
+            background: #0078d4;
+        }
+
+        .tool-separator {
+            width: 1px;
+            height: 30px;
+            background: #464647;
+            margin: 0 5px;
+        }
+
+        .dropdown {
+            position: relative;
+        }
+
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            background: #2d2d30;
+            border: 1px solid #464647;
+            border-radius: 3px;
+            top: 100%;
+            left: 0;
+            min-width: 120px;
+            z-index: 1000;
+        }
+
+        .dropdown-content.show {
+            display: block;
+        }
+
+        .dropdown-item {
+            padding: 8px 12px;
+            cursor: pointer;
+            border-bottom: 1px solid #464647;
+        }
+
+        .dropdown-item:hover {
+            background: #464647;
+        }
+
+        .dropdown-item:last-child {
+            border-bottom: none;
+        }
+
+        /* Canvas Area */
+        .canvas-area {
+            grid-area: canvas;
+            background: #474747;
+            position: relative;
+            overflow: hidden;
+        }
+
+        #gameCanvas {
+            display: block;
+            cursor: crosshair;
+            background: linear-gradient(#555 1px, transparent 1px), 
+                        linear-gradient(90deg, #555 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+
+        /* Right Panel */
+        .right-panel {
+            grid-area: right;
+            display: grid;
+            grid-template-rows: 1fr 1fr;
+            gap: 2px;
+        }
+
+        .explorer-panel, .properties-panel {
+            background: #2d2d30;
+            border: 1px solid #464647;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .panel-header {
+            background: #383a3c;
+            padding: 8px 12px;
+            font-size: 12px;
+            font-weight: bold;
+            border-bottom: 1px solid #464647;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .panel-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 5px;
+        }
+
+        .explorer-item {
+            display: flex;
+            align-items: center;
+            padding: 4px 8px;
+            cursor: pointer;
+            border-radius: 2px;
+            font-size: 12px;
+            margin-bottom: 2px;
+        }
+
+        .explorer-item:hover {
+            background: #464647;
+        }
+
+        .explorer-item.selected {
+            background: #0078d4;
+        }
+
+        .explorer-icon {
+            width: 16px;
+            height: 16px;
+            margin-right: 6px;
+            background: #666;
+            border-radius: 2px;
+        }
+
+        .add-button {
+            background: #0078d4;
+            border: none;
+            color: white;
+            width: 20px;
+            height: 20px;
+            border-radius: 2px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .property-row {
+            display: flex;
+            align-items: center;
+            padding: 4px 8px;
+            border-bottom: 1px solid #464647;
+            font-size: 12px;
+        }
+
+        .property-label {
+            width: 80px;
+            flex-shrink: 0;
+        }
+
+        .property-input {
+            flex: 1;
+            background: #3f4042;
+            border: 1px solid #464647;
+            color: white;
+            padding: 4px 6px;
+            border-radius: 2px;
+            font-size: 11px;
+        }
+
+        .color-picker {
+            width: 30px;
+            height: 25px;
+            border: none;
+            border-radius: 2px;
+            cursor: pointer;
+        }
+
+        /* Output Panel */
+        .output-panel {
+            grid-area: output;
+            background: #2d2d30;
+            border: 1px solid #464647;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .output-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 5px;
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+        }
+
+        .output-line {
+            margin-bottom: 2px;
+        }
+
+        .output-error {
+            color: #ff6b6b;
+        }
+
+        .output-warning {
+            color: #ffd93d;
+        }
+
+        .output-info {
+            color: #6bcf7f;
+        }
+
+        /* Script Editor */
+        .script-editor {
+            position: absolute;
+            top: 50px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 600px;
+            height: 400px;
+            background: #2d2d30;
+            border: 1px solid #464647;
+            border-radius: 3px;
+            display: none;
+            flex-direction: column;
+            z-index: 1000;
+        }
+
+        .script-tabs {
+            display: flex;
+            background: #383a3c;
+            border-bottom: 1px solid #464647;
+        }
+
+        .script-tab {
+            padding: 8px 15px;
+            cursor: pointer;
+            border-right: 1px solid #464647;
+            font-size: 12px;
+            background: #3f4042;
+        }
+
+        .script-tab.active {
+            background: #2d2d30;
+        }
+
+        .script-content {
+            flex: 1;
+            position: relative;
+        }
+
+        .script-textarea {
+            width: 100%;
+            height: 100%;
+            background: #1e1e1e;
+            color: white;
+            border: none;
+            padding: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            resize: none;
+            outline: none;
+        }
+
+        .script-close {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: #ff6b6b;
+            border: none;
+            color: white;
+            width: 20px;
+            height: 20px;
+            border-radius: 2px;
+            cursor: pointer;
+        }
+
+        /* Selection indicator */
+        .selection-box {
+            position: absolute;
+            border: 2px solid #0078d4;
+            pointer-events: none;
+            display: none;
+        }
+
+        /* Mobile responsiveness */
+        @media (max-width: 768px) {
+            .studio-container {
+                grid-template-areas: 
+                    "toolbar"
+                    "canvas"
+                    "right"
+                    "output";
+                grid-template-rows: 50px 1fr 300px 120px;
+                grid-template-columns: 1fr;
+            }
+
+            .right-panel {
+                grid-template-rows: 150px 150px;
+            }
+
+            .script-editor {
+                width: 90%;
+                height: 80%;
+            }
+        }
+
+        /* File input styling */
+        .file-input {
+            display: none;
+        }
+
+        .file-label {
+            background: #0078d4;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 2px;
+            cursor: pointer;
+            font-size: 11px;
+        }
+
+        /* Toast notifications */
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #0078d4;
+            color: white;
+            padding: 10px 15px;
+            border-radius: 3px;
+            z-index: 2000;
+            opacity: 0;
+            transform: translateY(-20px);
+            transition: all 0.3s ease;
+        }
+
+        .toast.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    </style>
+</head>
+<body>
+    <div class="studio-container">
+        <!-- Toolbar -->
+        <div class="toolbar">
+            <button class="tool-button active" id="moveTool" title="Move">
+                <span>📐</span> Move
+            </button>
+            <button class="tool-button" id="rotateTool" title="Rotate">
+                <span>🔄</span> Rotate
+            </button>
+            <button class="tool-button" id="scaleTool" title="Scale">
+                <span>⤡</span> Scale
+            </button>
+            <button class="tool-button" id="deleteTool" title="Delete">
+                <span>🗑️</span> Delete
+            </button>
+            
+            <div class="tool-separator"></div>
+            
+            <button class="tool-button" id="snapToggle" title="Snap to Grid">
+                <span>⊞</span> Snap: <span id="snapStatus">ON</span>
+            </button>
+            
+            <div class="tool-separator"></div>
+            
+            <div class="dropdown">
+                <button class="tool-button" id="addPartBtn" title="Add Part">
+                    <span>➕</span> Add Part ▼
+                </button>
+                <div class="dropdown-content" id="addPartDropdown">
+                    <div class="dropdown-item" data-type="square">Square</div>
+                    <div class="dropdown-item" data-type="circle">Circle</div>
+                    <div class="dropdown-item" data-type="image">Image</div>
+                </div>
+            </div>
+            
+            <div class="tool-separator"></div>
+            
+            <button class="tool-button" id="saveScene" title="Save Scene">
+                <span>💾</span> Save
+            </button>
+            <button class="tool-button" id="loadScene" title="Load Scene">
+                <span>📁</span> Load
+            </button>
+            
+            <input type="file" id="sceneFileInput" accept=".json" style="display: none;">
+        </div>
+
+        <!-- Canvas Area -->
+        <div class="canvas-area">
+            <canvas id="gameCanvas"></canvas>
+            <div class="selection-box" id="selectionBox"></div>
+        </div>
+
+        <!-- Right Panel -->
+        <div class="right-panel">
+            <!-- Explorer Panel -->
+            <div class="explorer-panel">
+                <div class="panel-header">
+                    Explorer
+                    <div>
+                        <button class="add-button" id="addSquareBtn" title="Add Square">⬜</button>
+                        <button class="add-button" id="addCircleBtn" title="Add Circle">⭕</button>
+                        <button class="add-button" id="addImageBtn" title="Add Image">🖼️</button>
+                        <button class="add-button" id="addScriptBtn" title="Add Script">📝</button>
+                    </div>
+                </div>
+                <div class="panel-content" id="explorerContent">
+                    <div class="explorer-item selected" data-id="workspace">
+                        <div class="explorer-icon"></div>
+                        Workspace
+                    </div>
+                </div>
+            </div>
+
+            <!-- Properties Panel -->
+            <div class="properties-panel">
+                <div class="panel-header">Properties</div>
+                <div class="panel-content" id="propertiesContent">
+                    <div style="padding: 10px; color: #999; font-size: 11px;">
+                        Select an object to view properties
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Output Panel -->
+        <div class="output-panel">
+            <div class="panel-header">Output</div>
+            <div class="output-content" id="outputContent">
+                <div class="output-line output-info">Welcome to 2D Game Editor!</div>
+                <div class="output-line">Ready to create awesome 2D games.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Script Editor (Hidden by default) -->
+    <div class="script-editor" id="scriptEditor">
+        <div class="script-tabs">
+            <div class="script-tab active">Script</div>
+        </div>
+        <div class="script-content">
+            <textarea class="script-textarea" id="scriptTextarea" placeholder="-- Write your script here
+-- Available functions:
+-- getPart(name) - Get a part by name
+-- movePart(part, x, y) - Move a part
+-- rotatePart(part, angle) - Rotate a part
+-- scalePart(part, width, height) - Scale a part
+-- log(message) - Print to output
+
+-- Example:
+-- local myPart = getPart('Part1')
+-- if myPart then
+--     movePart(myPart, 100, 100)
+--     log('Moved ' .. myPart.name)
+-- end"></textarea>
+            <button class="script-close" id="closeScript">×</button>
+        </div>
+    </div>
+
+    <!-- Hidden file inputs -->
+    <input type="file" id="imageFileInput" accept="image/*" class="file-input">
+
+    <script>
+        // Game Editor Core
+        class GameEditor {
+            constructor() {
+                this.canvas = document.getElementById('gameCanvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.objects = [];
+                this.selectedObject = null;
+                this.currentTool = 'move';
+                this.snapToGrid = true;
+                this.gridSize = 20;
+                this.isDragging = false;
+                this.dragOffset = { x: 0, y: 0 };
+                this.nextId = 1;
+                
+                this.initCanvas();
+                this.initEventListeners();
+                this.render();
+                
+                // Log startup
+                this.log('Editor initialized successfully', 'info');
+            }
+
+            initCanvas() {
+                this.resizeCanvas();
+                window.addEventListener('resize', () => this.resizeCanvas());
+            }
+
+            resizeCanvas() {
+                const container = this.canvas.parentElement;
+                this.canvas.width = container.clientWidth;
+                this.canvas.height = container.clientHeight;
+                this.render();
+            }
+
+            initEventListeners() {
+                // Mouse events
+                this.canvas.addEventListener('mousedown', (e) => this.onMouseDown(e));
+                this.canvas.addEventListener('mousemove', (e) => this.onMouseMove(e));
+                this.canvas.addEventListener('mouseup', (e) => this.onMouseUp(e));
+
+                // Touch events for mobile
+                this.canvas.addEventListener('touchstart', (e) => this.onTouchStart(e));
+                this.canvas.addEventListener('touchmove', (e) => this.onTouchMove(e));
+                this.canvas.addEventListener('touchend', (e) => this.onTouchEnd(e));
+
+                // Toolbar events
+                document.getElementById('moveTool').addEventListener('click', () => this.setTool('move'));
+                document.getElementById('rotateTool').addEventListener('click', () => this.setTool('rotate'));
+                document.getElementById('scaleTool').addEventListener('click', () => this.setTool('scale'));
+                document.getElementById('deleteTool').addEventListener('click', () => this.setTool('delete'));
+                document.getElementById('snapToggle').addEventListener('click', () => this.toggleSnap());
+
+                // Add part dropdown
+                document.getElementById('addPartBtn').addEventListener('click', () => this.toggleDropdown());
+                document.querySelectorAll('.dropdown-item').forEach(item => {
+                    item.addEventListener('click', (e) => this.addPart(e.target.dataset.type));
+                });
+
+                // Explorer add buttons
+                document.getElementById('addSquareBtn').addEventListener('click', () => this.addPart('square'));
+                document.getElementById('addCircleBtn').addEventListener('click', () => this.addPart('circle'));
+                document.getElementById('addImageBtn').addEventListener('click', () => this.addPart('image'));
+                document.getElementById('addScriptBtn').addEventListener('click', () => this.addScript());
+
+                // Save/Load
+                document.getElementById('saveScene').addEventListener('click', () => this.saveScene());
+                document.getElementById('loadScene').addEventListener('click', () => this.loadScene());
+                document.getElementById('sceneFileInput').addEventListener('change', (e) => this.handleSceneFile(e));
+
+                // Image upload
+                document.getElementById('imageFileInput').addEventListener('change', (e) => this.handleImageFile(e));
+
+                // Script editor
+                document.getElementById('closeScript').addEventListener('click', () => this.closeScriptEditor());
+
+                // Close dropdown when clicking outside
+                document.addEventListener('click', (e) => {
+                    if (!e.target.closest('.dropdown')) {
+                        document.getElementById('addPartDropdown').classList.remove('show');
+                    }
+                });
+            }
+
+            getMousePos(e) {
+                const rect = this.canvas.getBoundingClientRect();
+                return {
+                    x: e.clientX - rect.left,
+                    y: e.clientY - rect.top
+                };
+            }
+
+            getTouchPos(e) {
+                const rect = this.canvas.getBoundingClientRect();
+                const touch = e.touches[0] || e.changedTouches[0];
+                return {
+                    x: touch.clientX - rect.left,
+                    y: touch.clientY - rect.top
+                };
+            }
+
+            snapPosition(pos) {
+                if (!this.snapToGrid) return pos;
+                return {
+                    x: Math.round(pos.x / this.gridSize) * this.gridSize,
+                    y: Math.round(pos.y / this.gridSize) * this.gridSize
+                };
+            }
+
+            onMouseDown(e) {
+                const pos = this.getMousePos(e);
+                this.handlePointerDown(pos);
+            }
+
+            onTouchStart(e) {
+                e.preventDefault();
+                const pos = this.getTouchPos(e);
+                this.handlePointerDown(pos);
+            }
+
+            handlePointerDown(pos) {
+                const clickedObject = this.getObjectAt(pos);
+                
+                if (this.currentTool === 'delete' && clickedObject) {
+                    this.deleteObject(clickedObject);
+                    return;
+                }
+
+                if (clickedObject) {
+                    this.selectObject(clickedObject);
+                    if (this.currentTool === 'move') {
+                        this.isDragging = true;
+                        this.dragOffset = {
+                            x: pos.x - clickedObject.x,
+                            y: pos.y - clickedObject.y
+                        };
+                    }
+                } else {
+                    this.selectObject(null);
+                }
+            }
+
+            onMouseMove(e) {
+                const pos = this.getMousePos(e);
+                this.handlePointerMove(pos);
+            }
+
+            onTouchMove(e) {
+                e.preventDefault();
+                const pos = this.getTouchPos(e);
+                this.handlePointerMove(pos);
+            }
+
+            handlePointerMove(pos) {
+                if (this.isDragging && this.selectedObject && this.currentTool === 'move') {
+                    const newPos = this.snapPosition({
+                        x: pos.x - this.dragOffset.x,
+                        y: pos.y - this.dragOffset.y
+                    });
+                    this.selectedObject.x = newPos.x;
+                    this.selectedObject.y = newPos.y;
+                    this.render();
+                    this.updateProperties();
+                }
+            }
+
+            onMouseUp(e) {
+                this.handlePointerUp();
+            }
+
+            onTouchEnd(e) {
+                e.preventDefault();
+                this.handlePointerUp();
+            }
+
+            handlePointerUp() {
+                this.isDragging = false;
+            }
+
+            getObjectAt(pos) {
+                for (let i = this.objects.length - 1; i >= 0; i--) {
+                    const obj = this.objects[i];
+                    if (this.isPointInObject(pos, obj)) {
+                        return obj;
+                    }
+                }
+                return null;
+            }
+
+            isPointInObject(pos, obj) {
+                if (obj.type === 'circle') {
+                    const dx = pos.x - (obj.x + obj.width / 2);
+                    const dy = pos.y - (obj.y + obj.height / 2);
+                    const radius = obj.width / 2;
+                    return dx * dx + dy * dy <= radius * radius;
+                } else {
+                    return pos.x >= obj.x && pos.x <= obj.x + obj.width &&
+                           pos.y >= obj.y && pos.y <= obj.y + obj.height;
+                }
+            }
+
+            setTool(tool) {
+                this.currentTool = tool;
+                document.querySelectorAll('.tool-button').forEach(btn => btn.classList.remove('active'));
+                document.getElementById(tool + 'Tool').classList.add('active');
+                
+                if (tool === 'delete') {
+                    this.canvas.style.cursor = 'not-allowed';
+                } else if (tool === 'move') {
+                    this.canvas.style.cursor = 'move';
+                } else {
+                    this.canvas.style.cursor = 'crosshair';
+                }
+            }
+
+            toggleSnap() {
+                this.snapToGrid = !this.snapToGrid;
+                document.getElementById('snapStatus').textContent = this.snapToGrid ? 'ON' : 'OFF';
+                this.log(`Grid snapping ${this.snapToGrid ? 'enabled' : 'disabled'}`);
+            }
+
+            toggleDropdown() {
+                document.getElementById('addPartDropdown').classList.toggle('show');
+            }
+
+            addPart(type) {
+                document.getElementById('addPartDropdown').classList.remove('show');
+                
+                if (type === 'image') {
+                    document.getElementById('imageFileInput').click();
+                    return;
+                }
+
+                const obj = {
+                    id: this.nextId++,
+                    type: type,
+                    name: `${type.charAt(0).toUpperCase() + type.slice(1)}${this.nextId - 1}`,
+                    x: 100,
+                    y: 100,
+                    width: 80,
+                    height: 80,
+                    rotation: 0,
+                    color: '#4CAF50'
+                };
+
+                this.objects.push(obj);
+                this.selectObject(obj);
+                this.updateExplorer();
+                this.render();
+                this.log(`Added ${obj.name}`, 'info');
+            }
+
+            addScript() {
+                const script = {
+                    id: this.nextId++,
+                    type: 'script',
+                    name: `Script${this.nextId - 1}`,
+                    content: ''
+                };
+
+                this.objects.push(script);
+                this.selectObject(script);
+                this.updateExplorer();
+                this.openScriptEditor(script);
+                this.log(`Added ${script.name}`, 'info');
+            }
+
+            deleteObject(obj) {
+                const index = this.objects.indexOf(obj);
+                if (index > -1) {
+                    this.objects.splice(index, 1);
+                    if (this.selectedObject === obj) {
+                        this.selectObject(null);
+                    }
+                    this.updateExplorer();
+                    this.render();
+                    this.log(`Deleted ${obj.name}`, 'warning');
+                }
+            }
+
+            selectObject(obj) {
+                this.selectedObject = obj;
+                this.updateExplorer();
+                this.updateProperties();
+                this.updateSelectionBox();
+            }
+
+            updateSelectionBox() {
+                const box = document.getElementById('selectionBox');
+                if (this.selectedObject && this.selectedObject.type !== 'script') {
+                    const obj = this.selectedObject;
+                    box.style.display = 'block';
+                    box.style.left = obj.x + 'px';
+                    box.style.top = obj.y + 'px';
+                    box.style.width = obj.width + 'px';
+                    box.style.height = obj.height + 'px';
+                } else {
+                    box.style.display = 'none';
+                }
+            }
+
+            updateExplorer() {
+                const content = document.getElementById('explorerContent');
+                content.innerHTML = '<div class="explorer-item" data-id="workspace"><div class="explorer-icon"></div>Workspace</div>';
+
+                this.objects.forEach(obj => {
+                    const item = document.createElement('div');
+                    item.className = 'explorer-item';
+                    if (this.selectedObject === obj) {
+                        item.classList.add('selected');
+                    }
+                    item.dataset.id = obj.id;
+                    
+                    const icon = document.createElement('div');
+                    icon.className = 'explorer-icon';
+                    if (obj.type === 'square') icon.style.background = '#ff9800';
+                    else if (obj.type === 'circle') icon.style.background = '#2196f3';
+                    else if (obj.type === 'image') icon.style.background = '#9c27b0';
+                    else if (obj.type === 'script') icon.style.background = '#4caf50';
+                    
+                    item.appendChild(icon);
+                    item.appendChild(document.createTextNode(obj.name));
+                    
+                    item.addEventListener('click', () => this.selectObject(obj));
+                    content.appendChild(item);
+                });
+            }
+
+            updateProperties() {
+                const content = document.getElementById('propertiesContent');
+                
+                if (!this.selectedObject) {
+                    content.innerHTML = '<div style="padding: 10px; color: #999; font-size: 11px;">Select an object to view properties</div>';
+                    return;
+                }
+
+                const obj = this.selectedObject;
+                let html = '';
+
+                // Name
+                html += `<div class="property-row">
+                    <div class="property-label">Name:</div>
+                    <input type="text" class="property-input" value="${obj.name}" onchange="editor.updateProperty('name', this.value)">
+                </div>`;
+
+                if (obj.type !== 'script') {
+                    // Position
+                    html += `<div class="property-row">
+                        <div class="property-label">X:</div>
+                        <input type="number" class="property-input" value="${obj.x}" onchange="editor.updateProperty('x', parseFloat(this.value))">
+                    </div>`;
+                    html += `<div class="property-row">
+                        <div class="property-label">Y:</div>
+                        <input type="number" class="property-input" value="${obj.y}" onchange="editor.updateProperty('y', parseFloat(this.value))">
+                    </div>`;
+
+                    // Size
+                    html += `<div class="property-row">
+                        <div class="property-label">Width:</div>
+                        <input type="number" class="property-input" value="${obj.width}" onchange="editor.updateProperty('width', parseFloat(this.value))">
+                    </div>`;
+                    html += `<div class="property-row">
+                        <div class="property-label">Height:</div>
+                        <input type="number" class="property-input" value="${obj.height}" onchange="editor.updateProperty('height', parseFloat(this.value))">
+                    </div>`;
+
+                    // Rotation
+                    html += `<div class="property-row">
+                        <div class="property-label">Rotation:</div>
+                        <input type="number" class="property-input" value="${obj.rotation}" onchange="editor.updateProperty('rotation', parseFloat(this.value))">
+                    </div>`;
+
+                    // Color
+                    if (obj.type !== 'image') {
+                        html += `<div class="property-row">
+                            <div class="property-label">Color:</div>
+                            <input type="color" class="color-picker" value="${obj.color}" onchange="editor.updateProperty('color', this.value)">
+                        </div>`;
+                    }
+
+                    // Texture upload for images
+                    if (obj.type === 'image' && !obj.image) {
+                        html += `<div class="property-row">
+                            <div class="property-label">Texture:</div>
+                            <label class="file-label" onclick="editor.uploadTexture()">Upload Image</label>
+                        </div>`;
+                    }
+                }
+
+                content.innerHTML = html;
+            }
+
+            updateProperty(prop, value) {
+                if (this.selectedObject) {
+                    this.selectedObject[prop] = value;
+                    this.updateExplorer();
+                    this.updateSelectionBox();
+                    this.render();
+                }
+            }
+
+            uploadTexture() {
+                document.getElementById('imageFileInput').click();
+            }
+
+            handleImageFile(e) {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        if (this.selectedObject && this.selectedObject.type === 'image') {
+                            this.selectedObject.image = img;
+                            this.render();
+                            this.updateProperties();
+                            this.log(`Loaded texture for ${this.selectedObject.name}`, 'info');
+                        } else {
+                            // Create new image object
+                            const obj = {
+                                id: this.nextId++,
+                                type: 'image',
+                                name: `Image${this.nextId - 1}`,
+                                x: 100,
+                                y: 100,
+                                width: Math.min(img.width, 200),
+                                height: Math.min(img.height, 200),
+                                rotation: 0,
+                                image: img
+                            };
+                            this.objects.push(obj);
+                            this.selectObject(obj);
+                            this.updateExplorer();
+                            this.render();
+                            this.log(`Added ${obj.name}`, 'info');
+                        }
+                    };
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+
+            openScriptEditor(script) {
+                const editor = document.getElementById('scriptEditor');
+                const textarea = document.getElementById('scriptTextarea');
+                
+                textarea.value = script.content || '';
+                editor.style.display = 'flex';
+                
+                // Update script content when typing
+                textarea.oninput = () => {
+                    script.content = textarea.value;
+                };
+            }
+
+            closeScriptEditor() {
+                document.getElementById('scriptEditor').style.display = 'none';
+            }
+
+            render() {
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+                // Draw objects
+                this.objects.forEach(obj => {
+                    if (obj.type === 'script') return;
+
+                    this.ctx.save();
+                    this.ctx.translate(obj.x + obj.width / 2, obj.y + obj.height / 2);
+                    this.ctx.rotate(obj.rotation * Math.PI / 180);
+                    this.ctx.translate(-obj.width / 2, -obj.height / 2);
+
+                    if (obj.type === 'square') {
+                        this.ctx.fillStyle = obj.color;
+                        this.ctx.fillRect(0, 0, obj.width, obj.height);
+                        this.ctx.strokeStyle = '#333';
+                        this.ctx.strokeRect(0, 0, obj.width, obj.height);
+                    } else if (obj.type === 'circle') {
+                        this.ctx.beginPath();
+                        this.ctx.arc(obj.width / 2, obj.height / 2, obj.width / 2, 0, 2 * Math.PI);
+                        this.ctx.fillStyle = obj.color;
+                        this.ctx.fill();
+                        this.ctx.strokeStyle = '#333';
+                        this.ctx.stroke();
+                    } else if (obj.type === 'image' && obj.image) {
+                        this.ctx.drawImage(obj.image, 0, 0, obj.width, obj.height);
+                        this.ctx.strokeStyle = '#333';
+                        this.ctx.strokeRect(0, 0, obj.width, obj.height);
+                    }
+
+                    this.ctx.restore();
+                });
+            }
+
+            saveScene() {
+                const sceneData = {
+                    objects: this.objects.map(obj => {
+                        const data = { ...obj };
+                        if (data.image) {
+                            // Convert image to base64
+                            const canvas = document.createElement('canvas');
+                            const ctx = canvas.getContext('2d');
+                            canvas.width = data.image.width;
+                            canvas.height = data.image.height;
+                            ctx.drawImage(data.image, 0, 0);
+                            data.imageData = canvas.toDataURL();
+                            delete data.image;
+                        }
+                        return data;
+                    }),
+                    nextId: this.nextId
+                };
+
+                const blob = new Blob([JSON.stringify(sceneData, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'scene.json';
+                a.click();
+                URL.revokeObjectURL(url);
+
+                this.log('Scene saved successfully', 'info');
+                this.showToast('Scene saved!');
+            }
+
+            loadScene() {
+                document.getElementById('sceneFileInput').click();
+            }
+
+            handleSceneFile(e) {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const sceneData = JSON.parse(e.target.result);
+                        this.objects = [];
+                        this.nextId = sceneData.nextId || 1;
+
+                        sceneData.objects.forEach(objData => {
+                            const obj = { ...objData };
+                            if (obj.imageData) {
+                                const img = new Image();
+                                img.onload = () => {
+                                    obj.image = img;
+                                    this.render();
+                                };
+                                img.src = obj.imageData;
+                                delete obj.imageData;
+                            }
+                            this.objects.push(obj);
+                        });
+
+                        this.selectObject(null);
+                        this.updateExplorer();
+                        this.render();
+                        this.log('Scene loaded successfully', 'info');
+                        this.showToast('Scene loaded!');
+                    } catch (error) {
+                        this.log('Error loading scene: ' + error.message, 'error');
+                        this.showToast('Error loading scene!');
+                    }
+                };
+                reader.readAsText(file);
+            }
+
+            log(message, type = 'info') {
+                const output = document.getElementById('outputContent');
+                const line = document.createElement('div');
+                line.className = `output-line output-${type}`;
+                line.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+                output.appendChild(line);
+                output.scrollTop = output.scrollHeight;
+            }
+
+            showToast(message) {
+                const toast = document.createElement('div');
+                toast.className = 'toast';
+                toast.textContent = message;
+                document.body.appendChild(toast);
+                
+                setTimeout(() => toast.classList.add('show'), 100);
+                setTimeout(() => {
+                    toast.classList.remove('show');
+                    setTimeout(() => document.body.removeChild(toast), 300);
+                }, 2000);
+            }
+
+            // Script execution functions
+            getPart(name) {
+                return this.objects.find(obj => obj.name === name && obj.type !== 'script');
+            }
+
+            movePart(part, x, y) {
+                if (part) {
+                    part.x = x;
+                    part.y = y;
+                    this.render();
+                    this.updateProperties();
+                    this.updateSelectionBox();
+                }
+            }
+
+            rotatePart(part, angle) {
+                if (part) {
+                    part.rotation = angle;
+                    this.render();
+                    this.updateProperties();
+                }
+            }
+
+            scalePart(part, width, height) {
+                if (part) {
+                    part.width = width;
+                    part.height = height;
+                    this.render();
+                    this.updateProperties();
+                    this.updateSelectionBox();
+                }
+            }
+        }
+
+        // Initialize the editor
+        let editor;
+        window.addEventListener('load', () => {
+            editor = new GameEditor();
+        });
+
+        // Make functions available for scripts
+        window.getPart = (name) => editor.getPart(name);
+        window.movePart = (part, x, y) => editor.movePart(part, x, y);
+        window.rotatePart = (part, angle) => editor.rotatePart(part, angle);
+        window.scalePart = (part, width, height) => editor.scalePart(part, width, height);
+        window.log = (message) => editor.log(message, 'info');
+    </script>
+</body>
+</html>
