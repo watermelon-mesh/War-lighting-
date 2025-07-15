@@ -1,2 +1,2 @@
-# War-lighting-
-War thunder but 2D but made in js,css,html
+git clone https://github.com/watermelon-mesh/War-lighting-.git
+cd War-lighting-
